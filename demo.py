@@ -27,7 +27,7 @@ def manual_control_demo():
     print("  ESC     : Quit")
     print("\nTips:")
     print("  - Góc từ 0° (ngang) đến 90° (thẳng đứng)")
-    print("  - Power từ 20 đến 50")
+    print("  - Power từ 10 đến 50")
     print("  - Cần đủ mana (≥30) để bắn")
     print("="*70)
     

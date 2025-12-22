@@ -1,4 +1,4 @@
-# ArrowShooting DRL Environment (Gymnasium)
+# ArrowShooting DRL Environment
 
 A lightweight environment for training RL agents to shoot arrows at moving targets. Includes wind, gravity, and resource management. 
 

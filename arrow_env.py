@@ -84,9 +84,11 @@ class ArrowEnv(gym.Env):
     WORLD_WIDTH = 1800
     WORLD_HEIGHT = 900
     MAX_TARGETS = 5
+    TARGET_SCORE = 100
+    ARROW_LEFT_BONUS = 20
     TARGET_RADIUS = 20
     
-    MANA_REGEN_RATE = 0.5
+    MANA_REGEN_RATE = 0.3
     SHOOT_COST = 30
     MAX_ARROWS = 20
     MAX_MANA = 100
@@ -251,7 +253,11 @@ class ArrowEnv(gym.Env):
                 trajectory=[Vector2(self.player_pos.x, self.player_pos.y)]
             )
             self.arrows.append(new_arrow)
-        
+        # Update wind physics
+        self.wind.x += (self.np_random.random() - 0.5) * 0.014
+        self.wind.y += (self.np_random.random() - 0.5) * 0.013
+        self.wind.x = np.clip(self.wind.x, -self.WIND_MAX_STRENGTH, self.WIND_MAX_STRENGTH)
+        self.wind.y = np.clip(self.wind.y, -self.WIND_MAX_STRENGTH, self.WIND_MAX_STRENGTH)
         # 3. Update arrow physics
         arrows_went_out = 0
         for arrow in self.arrows:
@@ -268,8 +274,8 @@ class ArrowEnv(gym.Env):
             arrow.trajectory.append(Vector2(arrow.pos.x, arrow.pos.y))
             
             # Check bounds
-            if (arrow.pos.x < 0 or arrow.pos.x > self.WORLD_WIDTH or 
-                arrow.pos.y > self.WORLD_HEIGHT or arrow.pos.y < 0):
+            if (arrow.pos.x < 0 or 
+                arrow.pos.y > self.WORLD_HEIGHT ):
                 arrow.active = False
                 arrows_went_out += 1
         
@@ -296,7 +302,7 @@ class ArrowEnv(gym.Env):
                 if dist < target.radius:
                     target.active = False
                     arrow.active = False
-                    self.score += target.score_value
+                    self.score += self.TARGET_SCORE
                     self.episode_stats['targets_hit'] += 1
                     targets_hit_this_step += 1
                     break
@@ -313,9 +319,9 @@ class ArrowEnv(gym.Env):
         all_targets_down = all(not t.active for t in self.targets)
         if all_targets_down:
             self.terminated = True
-            self.score += self.arrows_left * 50
+            self.score += self.arrows_left * self.ARROW_LEFT_BONUS
         
-        if self.time_left <= 0 or self.arrows_left <= 0:
+        if self.time_left <= 0 or (self.episode_stats['total_shots'] == self.episode_stats['targets_hit'] + self.episode_stats['arrows_missed'] and self.arrows_left == 0):
             self.truncated = True
         
         
@@ -373,9 +379,17 @@ class ArrowEnv(gym.Env):
                 "time_left": self.time_left,
                 "arrows_left": self.arrows_left
             },
+            "arrows": [],
             "targets": []
         }
-        
+        # Add active arrows
+        for arrow in self.arrows:
+            if arrow.active:
+                obs["arrows"].append({
+                    "pos": {"x": arrow.pos.x, "y": arrow.pos.y},
+                    "vel": {"x": arrow.vel.x, "y": arrow.vel.y}
+                })
+
         # Add active targets
         for target in self.targets:
             if target.active:

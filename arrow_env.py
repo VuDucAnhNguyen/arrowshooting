@@ -442,7 +442,7 @@ class ArrowEnv(gym.Env):
         if self.window is None:
             pygame.init()
             pygame.display.init()
-            self.window = pygame.display.set_mode((self.WORLD_WIDTH, self.WORLD_HEIGHT))
+            self.window = pygame.display.set_mode((self.WORLD_WIDTH, self.WORLD_HEIGHT), pygame.SCALED | pygame.FULLSCREEN)
             pygame.display.set_caption("Arrow Shooting DRL - Student Environment")
         
         if self.clock is None:

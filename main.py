@@ -3,8 +3,10 @@ from agent import PPOAgent
 from training import Training
 from testing import Testing
 from arrow_env import ArrowEnv
+
 from reward_wrapper import RewardWrapper
 from observation_wrapper import ObsWrapper
+from action_wrapper import ArrowActionWrapper
 
 class Main:
     def __init__(self, mode):
@@ -21,8 +23,8 @@ class Main:
     def create_env (self, render_mode):
         env = ArrowEnv(render_mode = render_mode)
         env = RewardWrapper(env)
+        env = ArrowActionWrapper(env) # Bọc thêm ActionWrapper ở đây
         env = ObsWrapper(env)
-
         return env
 
     def run(self):

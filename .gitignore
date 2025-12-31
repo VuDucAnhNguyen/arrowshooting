@@ -45,3 +45,6 @@ build/
 # Misc
 .DS_Store
 *.pyc
+
+# Arrow shooting local files
+arrowshooting/long_*.py

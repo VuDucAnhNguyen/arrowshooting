@@ -57,7 +57,7 @@ class PPOAgent:
             R = rewards[step] + params.gamma * R * masks[step]
             returns.insert(0, R)
 
-        returns = torch.tensor(returns).to(params.device)
+        returns = torch.tensor(returns, dtype=torch.float32).to(params.device)
         #chuẩn hóa: (z-mean)/std, 1e-7 để tránh trường hợp độ lệch chuẩn thành 0
         returns = (returns - returns.mean()) / (returns.std() + 1e-7)
 

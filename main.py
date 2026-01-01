@@ -11,7 +11,7 @@ from action_wrapper import ArrowActionWrapper
 class Main:
     def __init__(self, mode):
         self.mode = mode
-        self.agent = PPOAgent(input_dim = params.input_dim, n_actions = params.output_dim)
+        self.agent = PPOAgent(input_dim = params.input_dim, action_dim = params.output_dim)
 
         if (mode == 0):
             self.env = self.create_env(render_mode = None)

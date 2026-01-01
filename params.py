@@ -6,7 +6,7 @@ class Params:
 
         self.input_dim = 66      
         self.hidden_dim = 256   # Số neuron lớp ẩn
-        self.output_dim = 2     # Action: mean(angle), mean(power)
+        self.output_dim = 3     # Action: mean(angle), mean(power)
         
         self.lr = 3e-4             # Tốc độ học 
         self.gamma = 0.99          # Discount factor (trọng số tương lai)

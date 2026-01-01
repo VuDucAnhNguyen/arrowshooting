@@ -328,7 +328,7 @@ class ArrowEnv(gym.Env):
         # 7. Get observation and info
         observation = self._get_obs()
         info = self._get_info()
-
+        
         if self.terminated or self.truncated:
             print(f"\n{'='*70}")
             print("EPISODE FINISHED!")

@@ -11,8 +11,3 @@ class Training:
 
     def start_training(self):
         self.agent.train(total_timesteps=params.n_steps * params.training_num_episodes)
-    
-            
-
-
-                

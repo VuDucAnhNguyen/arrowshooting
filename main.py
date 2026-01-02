@@ -1,5 +1,5 @@
 from params import params
-from agent import ArrowAgent
+from agent import PPOAgent
 from training import Training
 from testing import Testing
 from arrow_env import ArrowEnv
@@ -15,7 +15,7 @@ class Main:
         else:
             self.env = self.create_env(render_mode = "rgb_array")
 
-        self.agent = ArrowAgent(env=self.env)
+        self.agent = PPOAgent(params.input_dim, params.output_dim)
 
         if mode == 0:
             self.trainer = Training(agent=self.agent, env=self.env)

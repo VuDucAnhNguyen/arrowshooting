@@ -1,36 +1,87 @@
-from stable_baselines3 import PPO
-import os
+# agent.py
+import torch
+import torch.optim as optim
+import torch.nn as nn
+import numpy as np
+from model import PPO
+from params import params
 
-class ArrowAgent:
-    def __init__(self, env, model_path=None):
-        self.env = env
-        if model_path and os.path.exists(model_path + ".zip"):
-            # Load agent đã có sẵn dữ liệu training
-            self.model = PPO.load(model_path, env=self.env)
-            print(f"--- Đã load dữ liệu training từ {model_path} ---")
-        else:
-            # Tạo agent mới hoàn toàn
-            self.model = PPO(
-                policy="MlpPolicy", 
-                env=self.env, 
-                verbose=1,
-                learning_rate=0.0003,
-                tensorboard_log="./logs/"
-            )
-            print("--- Khởi tạo Agent mới ---")
+class PPOAgent:
+    def __init__(self, input_dim, action_dim):
+        self.model = PPO(input_dim, action_dim).to(params.device)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=params.lr)
+        self.MseLoss = nn.MSELoss()
 
-    def train(self, total_timesteps=100000, callback=None):
-        print(f"Đang bắt đầu học {total_timesteps} bước...")
-        self.model.learn(total_timesteps=total_timesteps, callback=callback)
-        self.save("models/arrow_champion")
+    # lấy action (chuẩn hóa nó)
+    def get_action(self, state):
+        state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(params.device)
+        
+        with torch.no_grad():
+            dist, value = self.model(state_tensor)
 
-    def predict(self, obs):
-        # Dùng khi thi đấu: Trả về hành động từ observation
-        action, _states = self.model.predict(obs, deterministic=True)
-        return action
+        action = dist.sample()
 
-    def save(self, path):
-        # Lưu dữ liệu training vào file .zip
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        self.model.save(path)
-        print(f"Đã lưu não bộ Agent tại: {path}.zip")
+        log_prob = dist.log_prob(action).sum(dim=-1)
+
+        return {
+            'action': action.cpu().numpy().flatten(), 
+            'log_prob': log_prob.item(),
+            'value': value.item()
+        }
+    
+    def compute_loss(self, log_probs, state_values, rewards, masks, entropies, next_state_value):
+        
+            
+        returns = torch.tensor(returns).to(params.device)
+        log_probs = torch.stack(log_probs)
+        state_values = torch.stack(state_values).view(-1)
+        entropy_loss = torch.stack(entropies).mean()
+        
+        advantage = returns - state_values
+        
+        actor_loss = -(log_probs * advantage.detach()).mean()
+        critic_loss = torch.nn.functional.mse_loss(state_values, returns)
+        loss = actor_loss + critic_loss - params.beta * entropy_loss
+
+        return loss
+
+    def update_model(self, states, actions, log_probs, rewards, masks, next_state_value):
+        old_states = torch.FloatTensor(np.array(states)).to(params.device)
+        old_actions = torch.FloatTensor(np.array(actions)).to(params.device)
+        old_logprobs = torch.FloatTensor(np.array(log_probs)).to(params.device)
+
+        returns = []
+        R = next_state_value
+        
+        for step in reversed(range(len(rewards))):
+            R = rewards[step] + params.gamma * R * masks[step]
+            returns.insert(0, R)
+
+        returns = torch.tensor(returns).to(params.device)
+        #chuẩn hóa: (z-mean)/std, 1e-7 để tránh trường hợp độ lệch chuẩn thành 0
+        returns = (returns - returns.mean()) / (returns.std() + 1e-7)
+
+        loss_value = 0
+        for _ in range(params.K_epochs):
+            dist, state_values = self.model(old_states)
+            state_values = state_values.squeeze()
+            
+            logprobs = dist.log_prob(old_actions).sum(dim=-1)
+            dist_entropy = dist.entropy().sum(dim=-1)
+            ratios = torch.exp(logprobs - old_logprobs)
+
+            advantages = returns - state_values.detach()
+
+            surr1 = ratios * advantages
+            surr2 = torch.clamp(ratios, 1 - params.eps_clip, 1 + params.eps_clip) * advantages
+            
+            loss = -torch.min(surr1, surr2) + 0.5 * self.MseLoss(state_values, returns) - params.beta * dist_entropy
+
+            self.optimizer.zero_grad()
+            loss.mean().backward()
+            self.optimizer.step()
+            
+            loss_value = loss.mean().item()
+            
+        return loss_value
+    

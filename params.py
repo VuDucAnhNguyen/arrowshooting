@@ -6,11 +6,11 @@ class Params:
 
         self.input_dim = 66      
         self.hidden_dim = 256   # Số neuron lớp ẩn
-        self.output_dim = 3     # Action: mean(angle), mean(power)
+        self.output_dim = 2     # Action: mean(angle), mean(power)
         
-        self.learning_rate = 3e-4  # Tốc độ học (thường A2C dùng 1e-3 hoặc 3e-4)
+        self.lr = 3e-4             # Tốc độ học 
         self.gamma = 0.99          # Discount factor (trọng số tương lai)
-        self.beta = 0.01
+        self.beta = 0.01           # hệ số entropy
         self.eps_clip = 0.2        # PPO cần thêm cái này (tỉ lệ cắt)
         self.K_epochs = 10         # Số lần học lại trên 1 batch (cho PPO)
         

@@ -17,7 +17,8 @@ class PPOAgent:
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(params.device)
         
         with torch.no_grad():
-            dist, value = self.model(state_tensor)
+            dist = self.model.act(state_tensor)
+            value = self.model.critic(state_tensor)
 
         action = dist.sample()
 
@@ -29,44 +30,84 @@ class PPOAgent:
             'value': value.item()
         }
 
-    def update_model(self, states, actions, log_probs, rewards, masks, next_state_value):
-        old_states = torch.FloatTensor(np.array(states)).to(params.device)
-        old_actions = torch.FloatTensor(np.array(actions)).to(params.device)
-        old_logprobs = torch.FloatTensor(np.array(log_probs)).to(params.device)
+    def update_model(self, states, actions, log_probs, rewards, masks, values, next_state_value):
+        states = torch.FloatTensor(np.array(states)).to(params.device)
+        actions = torch.FloatTensor(np.array(actions)).to(params.device)
+        old_log_probs = torch.FloatTensor(np.array(log_probs)).to(params.device)
+        rewards = torch.FloatTensor(np.array(rewards)).to(params.device)
+        masks = torch.FloatTensor(np.array(masks)).to(params.device)
+        values = torch.FloatTensor(np.array(values)).to(params.device)
 
         returns = []
-        R = next_state_value
-        
-        for step in reversed(range(len(rewards))):
-            R = rewards[step] + params.gamma * R * masks[step]
-            returns.insert(0, R)
+        advantages = []
 
-        returns = torch.tensor(returns, dtype=torch.float32).to(params.device)
-        #chuẩn hóa: (z-mean)/std, 1e-7 để tránh trường hợp độ lệch chuẩn thành 0
-        returns = (returns - returns.mean()) / (returns.std() + 1e-7)
+        with torch.no_grad():
+            # Tính lại values cho chính xác (hoặc dùng values đã lưu)
+            _, current_values = self.model.evaluate(states)
+            current_values = current_values.squeeze()
+            
+            # Tính Returns và Advantages
+            returns = torch.zeros_like(rewards).to(params.device)
+            advantages = torch.zeros_like(rewards).to(params.device)
+            
+            running_return = 0
+            previous_value = 0
+            running_advantage = 0
+            
+            # Tính ngược từ cuối lên
+            for t in reversed(range(len(rewards))):
+                # 1. Tính Return (Reward-to-go) cho Critic học
+                running_return = rewards[t] + params.gamma * running_return * masks[t]
+                returns[t] = running_return
+                
+                # 2. Tính GAE cho Actor học (Ổn định hơn nhiều)
+                # Nếu là bước cuối cùng
+                if t == len(rewards) - 1:
+                    next_val = next_state_value 
+                else:
+                    # Nếu không, lấy value của bước kế tiếp trong batch
+                    next_val = values[t + 1]
+                    
+                delta = rewards[t] + params.gamma * next_val * masks[t] - current_values[t]
+                running_advantage = delta + params.gamma * 0.95 * running_advantage * masks[t] # 0.95 là GAE lambda
+                advantages[t] = running_advantage
+
+        # CHUẨN HÓA ADVANTAGE 
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-7)
 
         loss_value = 0
+        
         for _ in range(params.K_epochs):
-            dist, state_values = self.model(old_states)
+            # Evaluate lại state cũ để lấy log_prob mới và value mới
+            dist, state_values = self.model.evaluate(states)
             state_values = state_values.squeeze()
             
-            logprobs = dist.log_prob(old_actions).sum(dim=-1)
+            # Lấy log_prob của hành động cũ trên phân phối mới
+            curr_log_probs = dist.log_prob(actions).sum(dim=-1)
             dist_entropy = dist.entropy().sum(dim=-1)
-            ratios = torch.exp(logprobs - old_logprobs)
+            
+            # Tính tỷ lệ Ratio (pi_new / pi_old)
+            ratios = torch.exp(curr_log_probs - old_log_probs)
 
-            advantages = returns - state_values.detach()
-
+            # Tính Surrogate Loss
             surr1 = ratios * advantages
             surr2 = torch.clamp(ratios, 1 - params.eps_clip, 1 + params.eps_clip) * advantages
             
-            loss = -torch.min(surr1, surr2) + 0.5 * self.MseLoss(state_values, returns) - params.beta * dist_entropy
+            # Loss tổng hợp
+            # Actor loss: -min(...)
+            # Critic loss: MSE(new_value, returns)
+            # Entropy bonus: trừ đi để khuyến khích explore (hoặc cộng vào loss âm)
+            loss = -torch.min(surr1, surr2) + 0.5 * self.MseLoss(state_values, returns) - 0.01 * dist_entropy
 
             self.optimizer.zero_grad()
             loss.mean().backward()
+            
+            # Gradient Clipping (Tránh nổ gradient)
+            nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
+            
             self.optimizer.step()
             
             loss_value = loss.mean().item()
             
         return loss_value
-    
 

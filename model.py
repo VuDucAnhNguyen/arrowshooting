@@ -7,36 +7,49 @@ class PPO(nn.Module):
     def __init__(self, input_dim, action_dim):
         super(PPO, self).__init__()
 
-        self.shared = nn.Sequential(
-            nn.Linear(input_dim, params.hidden_dim),
+        # 1. CRITIC NETWORK (Đánh giá trạng thái)
+        self.critic = nn.Sequential(
+            nn.Linear(input_dim, 64),
             nn.Tanh(),
-            nn.Linear(params.hidden_dim, params.hidden_dim),
+            nn.Linear(64, 64),
             nn.Tanh(),
+            nn.Linear(64, 1)
         )
 
-        #actor mean tính giá trị góc bắn và lực trong khoảng [-1, 1]
-        self.actor_mean = nn.Sequential(
-            nn.Linear(params.hidden_dim, action_dim),
-            nn.Tanh()
+        # 2. ACTOR NETWORK (Quyết định hành động)
+        self.actor = nn.Sequential(
+            nn.Linear(input_dim, 64),
+            nn.Tanh(),
+            nn.Linear(64, 64),
+            nn.Tanh(),
+            nn.Linear(64, action_dim),
+            nn.Tanh() # Output [-1, 1]
         )
 
         #actor log std tính log độ lệch chuẩn, khởi đầu độ lệch chuẩn là 1 (e^0)
         #tính log nhằm loại bỏ dấu âm std
-        self.actor_log_std = nn.Parameter(torch.zeros(1, action_dim) + 0.5)
-
-        self.critic = nn.Linear(params.hidden_dim, 1)
+        self.actor_log_std = nn.Parameter(torch.zeros(1, action_dim) - 0.5)
 
     def forward(self, state):
-        x = self.shared(state)
+        raise NotImplementedError
+    
+    def act(self, state):
+        """Dùng khi lấy action để chơi"""
+        action_mean = self.actor(state)
+        action_log_std = self.actor_log_std.expand_as(action_mean)
+        action_std = torch.exp(action_log_std)
         
-        mean = self.actor_mean(x)
+        dist = Normal(action_mean, action_std)
+        
+        return dist
 
-        #chuyển log std -> std
-        std = torch.exp(self.actor_log_std.expand_as(mean))
-
-        #tạo phân phối chuẩn theo mean và std
-        dist = Normal(mean, std)
-
-        value = self.critic(x)
-
-        return dist, value
+    def evaluate(self, state):
+        """Dùng khi update model (trả về cả dist và value)"""
+        action_mean = self.actor(state)
+        action_log_std = self.actor_log_std.expand_as(action_mean)
+        action_std = torch.exp(action_log_std)
+        
+        dist = Normal(action_mean, action_std)
+        state_value = self.critic(state)
+        
+        return dist, state_value

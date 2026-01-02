@@ -29,7 +29,7 @@ class Testing():
                 
             # Chỉ cần lấy action từ model, không cần tính toán loss
             with torch.no_grad():
-                dist, _ = self.agent.model(state_tensor)
+                dist= self.agent.model.act(state_tensor)
                 action = dist.mean
 
                 action = action.cpu().numpy().flatten()

@@ -25,6 +25,7 @@ class Training:
         log_probs = []
         rewards = []
         masks = []
+        values = []
 
         for episode in range(1, n_episode + 1):
             state, _ = self.env.reset()
@@ -33,7 +34,6 @@ class Training:
             step_count = 0
 
             while not done:
-               
                 res = self.agent.get_action(state)
                 action = res['action']
                 log_prob = res['log_prob']
@@ -47,6 +47,7 @@ class Training:
                 log_probs.append(float(log_prob)) # Ép kiểu log_prob
                 rewards.append(float(reward))    # Ép kiểu reward từ np.float64 -> float
                 masks.append(0.0 if terminated else 1.0)
+                values.append(value)
 
                 total_rewards += reward
                 state = next_state
@@ -59,8 +60,7 @@ class Training:
                         # Ép kiểu state sang float32 tensor trước khi đưa vào model
                         next_state_tensor = torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(params.device)
                         with torch.no_grad():
-                            _, next_val = self.agent.model(next_state_tensor)
-                            # .item() trả về float chuẩn của Python
+                            _, next_val = self.agent.model.evaluate(next_state_tensor)
                             next_state_value = next_val.item()
 
                     self.agent.update_model(
@@ -69,10 +69,11 @@ class Training:
                         log_probs=log_probs,
                         rewards=rewards,
                         masks=masks,
-                        next_state_value=float(next_state_value)
+                        values=values,
+                        next_state_value=next_state_value
                     )
 
-                    states, actions, log_probs, rewards, masks = [], [], [], [], []
+                    states, actions, log_probs, rewards, masks, values = [], [], [], [], [], []
 
             # Lưu log và plot 
             if episode == 1:
@@ -87,5 +88,5 @@ class Training:
                 print(f"Episode {episode} \t Raw {total_rewards:.2f} \t Smooth {running_reward:.2f}")
 
         utils.save_model(self.agent)
-        utils.plot_learning_curve(raw_rewards=raw_history, smoothed_rewards=smoothed_history, save_path="result/training_curve")
+        utils.plot_learning_curve(raw_rewards=raw_history, smoothed_rewards=smoothed_history, save_path="result/training_curve.png")
         self.env.close()

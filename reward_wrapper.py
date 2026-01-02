@@ -47,8 +47,8 @@ class RewardWrapper(gym.Wrapper):
             
             # Thưởng "tiệm cận": Khoảng cách càng gần, reward càng tăng nhẹ
             # Công thức: 1 / (khoảng cách + 1) để tránh chia cho 0
-            if current_min_dist < 80:
-                proximity_reward = 0.05 * (1.0 - (current_min_dist / 80.0))
+            if current_min_dist < 800:
+                proximity_reward = 0.05 * (1.0 - (current_min_dist / 800.0))
                 reward += proximity_reward
 
         # 3. Phạt "Idle" (Không làm gì)

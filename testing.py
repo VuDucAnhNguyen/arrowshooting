@@ -9,13 +9,6 @@ class Testing():
         self.env = env
 
     def start_testing(self):
-        video_env = RecordVideo(
-            self.env, 
-            video_folder = "result",
-            name_prefix="agent_gameplay", # Tên file bắt đầu bằng..
-            episode_trigger=lambda x: True, # Lưu tất cả các ván chơi
-        )
-
         #load model từ file
         try:
             utils.load_model(agent = self.agent)
@@ -25,11 +18,12 @@ class Testing():
         
         self.agent.model.eval() # Chuyển sang chế độ test
 
-        state, _ = video_env.reset()
+        state, _ = self.env.reset()
         done = False
         total_reward = 0
             
         while not done:
+            self.env.render()
             # Chuyển state sang tensor
             state_tensor = torch.FloatTensor(state).unsqueeze(0).to(params.device)
                 
@@ -40,11 +34,11 @@ class Testing():
 
                 action = action.cpu().numpy().flatten()
                 
-            state, reward, terminated, truncated, _ = video_env.step(action)
+            state, reward, terminated, truncated, _ = self.env.step(action)
             done = terminated or truncated
             total_reward += reward
                 
         print(f"Điểm số = {total_reward}")
 
             
-        video_env.close()
+        self.env.close()

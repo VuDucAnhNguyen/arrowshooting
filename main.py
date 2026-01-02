@@ -17,7 +17,7 @@ class Main:
             self.env = self.create_env(render_mode = None)
             self.trainer = Training(agent=self.agent, env=self.env)
         else:
-            self.env = self.create_env(render_mode = "rgb_array")
+            self.env = self.create_env(render_mode = "human")
             self.tester = Testing(agent=self.agent, env=self.env)
 
     def create_env (self, render_mode):

@@ -22,7 +22,7 @@ class Utlis:
         plt.ylabel("Total Reward per Episode")
         plt.legend()
         plt.grid(True)
-        plt.savefig(f"result/training_curve_{params.n_steps}steps.png")
+        plt.savefig(f"result/training_curve.png")
         plt.show()
 
 utils = Utlis()

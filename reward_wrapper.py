@@ -20,14 +20,14 @@ class RewardWrapper(gym.Wrapper):
         
         # 1. Cơ chế Thưởng/Phạt cơ bản (Hard Events)
         if step_info.get('shot_fired', False):
-            reward -= 2.0  # Giảm mức phạt bắn để khuyến khích Agent thử nghiệm
+            reward -= 1.0  # Giảm mức phạt bắn để khuyến khích Agent thử nghiệm
             
         if step_info.get('targets_hit', 0) > 0:
-            reward += 150.0 * step_info['targets_hit'] # Thưởng lớn khi trúng
+            reward += 400.0 * step_info['targets_hit'] # Thưởng lớn khi trúng
             
         if step_info.get('arrows_went_out', 0) > 0:
             reward -= 10.0 * step_info['arrows_went_out']
-
+        
         # 2. Distance Reward (Reward Shaping - Linh hồn của sự cải tiến)
         # Mục tiêu: Thưởng khi mũi tên bay lại gần Target
         active_arrows = obs.get('arrows', [])
@@ -47,8 +47,9 @@ class RewardWrapper(gym.Wrapper):
             
             # Thưởng "tiệm cận": Khoảng cách càng gần, reward càng tăng nhẹ
             # Công thức: 1 / (khoảng cách + 1) để tránh chia cho 0
-            proximity_reward = 10.0 / (current_min_dist / 100.0 + 1.0)
-            reward += proximity_reward
+            if current_min_dist < 80:
+                proximity_reward = 0.05 * (1.0 - (current_min_dist / 80.0))
+                reward += proximity_reward
 
         # 3. Phạt "Idle" (Không làm gì)
         # Nếu không có mũi tên nào trên màn hình và Agent không bắn, phạt nhẹ

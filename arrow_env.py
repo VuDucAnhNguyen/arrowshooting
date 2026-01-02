@@ -140,6 +140,8 @@ class ArrowEnv(gym.Env):
             'arrows_missed': 0,
             'total_shots': 0
         }
+
+        self.difficulty = 0
     
     def reset(
         self, 
@@ -157,6 +159,12 @@ class ArrowEnv(gym.Env):
         
         # Reset game state
         self.player_pos = Vector2(50, self.WORLD_HEIGHT - 50)
+
+        if (self.difficulty < 2):
+            self.WIND_MAX_STRENGTH = 0
+        else:
+            self.WIND_MAX_STRENGTH = 0.2
+        
         self.wind = Vector2(
             (self.np_random.random() - 0.5) * self.WIND_MAX_STRENGTH * 2,
             (self.np_random.random() - 0.5) * self.WIND_MAX_STRENGTH * 2
@@ -180,13 +188,18 @@ class ArrowEnv(gym.Env):
         # Create targets
         self.targets = []
         for i in range(self.MAX_TARGETS):
+            if self.difficulty == 0:
+                target_vel = Vector2(0, 0) # Đứng yên
+            else:
+                target_vel = Vector2(0, (self.np_random.random() - 0.5) * 4)
+
             target = Target(
                 id=i,
                 pos=Vector2(
                     600 + self.np_random.random() * 300,
                     100 + self.np_random.random() * 400
                 ),
-                vel=Vector2(0, (self.np_random.random() - 0.5) * 4),
+                vel=target_vel,
                 active=True
             )
             self.targets.append(target)

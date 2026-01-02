@@ -13,7 +13,7 @@ class Utlis:
     def save_model(self, agent):
         torch.save(agent.model.state_dict(), params.save_path)
 
-    def plot_learning_curve(self, raw_rewards, smoothed_rewards):
+    def plot_learning_curve(self, raw_rewards, smoothed_rewards, save_path):
         plt.figure(figsize=(10, 6))
         plt.plot(raw_rewards, label='Raw Reward (Episode)', color='cyan', alpha=0.3)
         plt.plot(smoothed_rewards, label='Smoothed Reward (Trend)', color='orange', linewidth=2)
@@ -22,7 +22,7 @@ class Utlis:
         plt.ylabel("Total Reward per Episode")
         plt.legend()
         plt.grid(True)
-        plt.savefig(f"result/training_curve.png")
+        plt.savefig(save_path)
         plt.show()
 
 utils = Utlis()

@@ -13,7 +13,7 @@ class PPOAgent:
         self.MseLoss = nn.MSELoss()
 
     # lấy action (chuẩn hóa nó)
-    def select_action(self, state):
+    def get_action(self, state):
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(params.device)
         
         with torch.no_grad():
@@ -28,22 +28,6 @@ class PPOAgent:
             'log_prob': log_prob.item(),
             'value': value.item()
         }
-    
-    def compute_loss(self, log_probs, state_values, rewards, masks, entropies, next_state_value):
-        
-            
-        returns = torch.tensor(returns).to(params.device)
-        log_probs = torch.stack(log_probs)
-        state_values = torch.stack(state_values).view(-1)
-        entropy_loss = torch.stack(entropies).mean()
-        
-        advantage = returns - state_values
-        
-        actor_loss = -(log_probs * advantage.detach()).mean()
-        critic_loss = torch.nn.functional.mse_loss(state_values, returns)
-        loss = actor_loss + critic_loss - params.beta * entropy_loss
-
-        return loss
 
     def update_model(self, states, actions, log_probs, rewards, masks, next_state_value):
         old_states = torch.FloatTensor(np.array(states)).to(params.device)

@@ -31,46 +31,39 @@ class PPOAgent:
         }
 
     def update_model(self, states, actions, log_probs, rewards, masks, values, next_state_value):
+        if len(states) < 2:
+            return 0.0
+
         states = torch.FloatTensor(np.array(states)).to(params.device)
         actions = torch.FloatTensor(np.array(actions)).to(params.device)
         old_log_probs = torch.FloatTensor(np.array(log_probs)).to(params.device)
         rewards = torch.FloatTensor(np.array(rewards)).to(params.device)
         masks = torch.FloatTensor(np.array(masks)).to(params.device)
-        values = torch.FloatTensor(np.array(values)).to(params.device)
+        old_values = torch.FloatTensor(np.array(values)).to(params.device)
+        
 
-        returns = []
         advantages = []
+        gae = 0
 
-        with torch.no_grad():
-            # Tính lại values cho chính xác (hoặc dùng values đã lưu)
-            _, current_values = self.model.evaluate(states)
-            current_values = current_values.squeeze()
+        
+        if not isinstance(next_state_value, torch.Tensor):
+            next_state_value = torch.tensor(
+            next_state_value, device=params.device, dtype=torch.float32
+            )
             
-            # Tính Returns và Advantages
-            returns = torch.zeros_like(rewards).to(params.device)
-            advantages = torch.zeros_like(rewards).to(params.device)
-            
-            running_return = 0
-            previous_value = 0
-            running_advantage = 0
-            
-            # Tính ngược từ cuối lên
-            for t in reversed(range(len(rewards))):
-                # 1. Tính Return (Reward-to-go) cho Critic học
-                running_return = rewards[t] + params.gamma * running_return * masks[t]
-                returns[t] = running_return
-                
-                # 2. Tính GAE cho Actor học (Ổn định hơn nhiều)
-                # Nếu là bước cuối cùng
-                if t == len(rewards) - 1:
-                    next_val = next_state_value 
-                else:
-                    # Nếu không, lấy value của bước kế tiếp trong batch
-                    next_val = values[t + 1]
-                    
-                delta = rewards[t] + params.gamma * next_val * masks[t] - current_values[t]
-                running_advantage = delta + params.gamma * 0.95 * running_advantage * masks[t] # 0.95 là GAE lambda
-                advantages[t] = running_advantage
+        # Tính ngược từ cuối lên
+        for t in reversed(range(len(rewards))):
+            if t == len(rewards) - 1:
+                next_value = next_state_value
+            else:
+                next_value = old_values[t + 1]
+
+            delta = rewards[t] + params.gamma * next_value * masks[t] - old_values[t]
+            gae = delta + params.gamma * params.gae_lambda * masks[t] * gae
+            advantages.insert(0, gae)
+
+        advantages = torch.tensor(advantages, dtype=torch.float32).to(params.device)
+        returns = advantages + old_values
 
         # CHUẨN HÓA ADVANTAGE 
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-7)
@@ -79,8 +72,8 @@ class PPOAgent:
         
         for _ in range(params.K_epochs):
             # Evaluate lại state cũ để lấy log_prob mới và value mới
-            dist, state_values = self.model.evaluate(states)
-            state_values = state_values.squeeze()
+            dist, new_values = self.model.evaluate(states)
+            new_values = new_values.squeeze()
             
             # Lấy log_prob của hành động cũ trên phân phối mới
             curr_log_probs = dist.log_prob(actions).sum(dim=-1)
@@ -97,10 +90,10 @@ class PPOAgent:
             # Actor loss: -min(...)
             # Critic loss: MSE(new_value, returns)
             # Entropy bonus: trừ đi để khuyến khích explore (hoặc cộng vào loss âm)
-            loss = -torch.min(surr1, surr2) + 0.5 * self.MseLoss(state_values, returns) - 0.01 * dist_entropy
+            loss = -torch.min(surr1, surr2).mean() + 0.5 * self.MseLoss(new_values, returns) - params.beta * dist_entropy.mean()
 
             self.optimizer.zero_grad()
-            loss.mean().backward()
+            loss.backward()
             
             # Gradient Clipping (Tránh nổ gradient)
             nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)

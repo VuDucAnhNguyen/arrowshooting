@@ -30,13 +30,17 @@ class PPO(nn.Module):
         #tính log nhằm loại bỏ dấu âm std
         self.actor_log_std = nn.Parameter(torch.zeros(1, action_dim) - 0.5)
 
+        
+
     def forward(self, state):
         raise NotImplementedError
     
     def act(self, state):
         """Dùng khi lấy action để chơi"""
         action_mean = self.actor(state)
-        action_log_std = self.actor_log_std.expand_as(action_mean)
+        action_log_std = torch.clamp(
+            self.actor_log_std.expand_as(action_mean), -2, 1
+        )
         action_std = torch.exp(action_log_std)
         
         dist = Normal(action_mean, action_std)
@@ -46,7 +50,9 @@ class PPO(nn.Module):
     def evaluate(self, state):
         """Dùng khi update model (trả về cả dist và value)"""
         action_mean = self.actor(state)
-        action_log_std = self.actor_log_std.expand_as(action_mean)
+        action_log_std = torch.clamp(
+            self.actor_log_std.expand_as(action_mean), -2, 1
+        )
         action_std = torch.exp(action_log_std)
         
         dist = Normal(action_mean, action_std)

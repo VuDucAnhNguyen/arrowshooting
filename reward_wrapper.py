@@ -20,10 +20,10 @@ class RewardWrapper(gym.Wrapper):
         
         # 1. Cơ chế Thưởng/Phạt cơ bản (Hard Events)
         if step_info.get('shot_fired', False):
-            reward -= 1.0  # Giảm mức phạt bắn để khuyến khích Agent thử nghiệm
+            reward -= 0.0  # Giảm mức phạt bắn để khuyến khích Agent thử nghiệm
             
         if step_info.get('targets_hit', 0) > 0:
-            reward += 400.0 * step_info['targets_hit'] # Thưởng lớn khi trúng
+            reward += 100.0 * step_info['targets_hit'] # Thưởng lớn khi trúng
             
         if step_info.get('arrows_went_out', 0) > 0:
             reward -= 10.0 * step_info['arrows_went_out']
@@ -47,18 +47,13 @@ class RewardWrapper(gym.Wrapper):
             
             # Thưởng "tiệm cận": Khoảng cách càng gần, reward càng tăng nhẹ
             # Công thức: 1 / (khoảng cách + 1) để tránh chia cho 0
-            if current_min_dist < 800:
-                proximity_reward = 0.05 * (1.0 - (current_min_dist / 800.0))
+            if current_min_dist < 200:
+                proximity_reward = 0.05 * (1.0 - (current_min_dist / 200.0))
                 reward += proximity_reward
 
         # 3. Phạt "Idle" (Không làm gì)
         # Nếu không có mũi tên nào trên màn hình và Agent không bắn, phạt nhẹ
         if len(active_arrows) == 0 and not step_info.get('shot_fired', False):
-            reward -= 0.1
-
-        # 4. Bonus khi hoàn thành màn chơi sớm
-        if info.get('active_targets') == 0:
-            reward += info.get('arrows_left', 0) * 10.0
-            reward += (info.get('time_left', 0) / 100.0) * 5.0
+            reward -= 0.5
 
         return reward

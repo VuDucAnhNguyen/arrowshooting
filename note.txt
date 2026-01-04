@@ -1,0 +1,61 @@
+# def _get_info(self) -> Dict[str, Any]:
+#     """
+#     Tạo info dict với đầy đủ thông tin để tính reward
+    
+#     Returns:
+#         Dict chứa:
+#         - score: Điểm hiện tại
+#         - mana: Mana hiện tại
+#         - time_left: Thời gian còn lại
+#         - arrows_left: Số arrows còn lại
+#         - active_targets: Số targets còn sống
+#         - targets_hit: Tổng số targets đã trúng
+#         - arrows_missed: Tổng số arrows bắn trượt
+#         - total_shots: Tổng số lần bắn
+#     """
+#     active_targets = sum(1 for t in self.targets if t.active)
+    
+#     return {
+#         "score": self.score,
+#         "mana": self.mana,
+#         "time_left": self.time_left,
+#         "arrows_left": self.arrows_left,
+#         "total_targets": self.MAX_TARGETS,
+#         "active_targets": active_targets,
+#         "targets_hit": self.episode_stats['targets_hit'],
+#         "arrows_missed": self.episode_stats['arrows_missed'],
+#         "total_shots": self.episode_stats['total_shots'],
+#         "arrows_active": sum(1 for a in self.arrows if a.active),
+#     }
+
+# info['step_info'] = {
+#     'shot_fired': shot_fired,
+#     'targets_hit': targets_hit_this_step,
+#     'arrows_went_out': arrows_went_out,
+#     'score_gained': self.score - prev_score,
+#     'active_targets_before': prev_active_targets,
+#     'active_targets_after': sum(1 for t in self.targets if t.active),
+# }
+
+# obs = {
+#     "player": {
+#         "x": self.player_pos.x,
+#         "y": self.player_pos.y
+#     },
+#     "wind": {
+#         "x": self.wind.x,
+#         "y": self.wind.y
+#     },
+#     "resources": {
+#         "mana": self.mana,
+#         "time_left": self.time_left,
+#         "arrows_left": self.arrows_left
+#     },
+#     "arrows": [],
+#     "targets": []
+# }
+
+
+tensorboard --logdir=ppo_arrow_tensorboard
+phải chạy song song với quá trình train
+.venv\Scripts\activate

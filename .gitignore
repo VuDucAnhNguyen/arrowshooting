@@ -26,7 +26,7 @@ Thumbs.db
 *.pkl
 *.h5
 *.pt
-*.pth
+
 models/
 data/
 

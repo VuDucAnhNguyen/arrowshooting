@@ -26,7 +26,7 @@ class PPO(nn.Module):
             nn.Tanh() # Output [-1, 1]
         )
 
-        #actor log std tính log độ lệch chuẩn, khởi đầu độ lệch chuẩn là 1 (e^0)
+        #actor log std tính log độ lệch chuẩn
         #tính log nhằm loại bỏ dấu âm std
         self.actor_log_std = nn.Parameter(torch.zeros(1, action_dim) - 0.5)
 

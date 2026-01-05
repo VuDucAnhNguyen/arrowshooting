@@ -141,7 +141,7 @@ class ArrowEnv(gym.Env):
             'total_shots': 0
         }
 
-        self.difficulty = 0
+        self.difficulty = 2
     
     def reset(
         self, 
@@ -293,6 +293,14 @@ class ArrowEnv(gym.Env):
                 arrows_went_out += 1
         
         # 4. Update targets and check collisions
+        priority_target = None
+        for t in self.targets:
+            if t.active:
+                priority_target = t
+                break
+
+        hit_priority_target = False
+
         targets_hit_this_step = 0
         
         for target in self.targets:
@@ -318,6 +326,9 @@ class ArrowEnv(gym.Env):
                     self.score += self.TARGET_SCORE
                     self.episode_stats['targets_hit'] += 1
                     targets_hit_this_step += 1
+
+                    if target is priority_target:
+                        hit_priority_target = True
                     break
         
         # Track missed arrows
@@ -367,6 +378,7 @@ class ArrowEnv(gym.Env):
             'score_gained': self.score - prev_score,
             'active_targets_before': prev_active_targets,
             'active_targets_after': sum(1 for t in self.targets if t.active),
+            'hit_priority_target': hit_priority_target
         }
         
         return observation, self.terminated, self.truncated, info

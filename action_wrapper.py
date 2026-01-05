@@ -27,9 +27,19 @@ class ArrowActionWrapper(gym.ActionWrapper):
         
         # 2. Map Lực: [-1, 1] -> [10, 50]
         power = (clipped_action[1] + 1) / 2 * (50.0 - 10.0) + 10.0
+
+        all_arrows = self.env.unwrapped.arrows
+
+        flying_arrows_count = sum(1 for a in all_arrows if a.active)
+
+        wants_to_shoot = clipped_action[2] > 0.0
         
-        shoot_signal = clipped_action[2] 
-        shoot = 1.0 if shoot_signal > 0.0 else 0.0
+        if flying_arrows_count > 0:
+            # RULE: Nếu đang có tên bay -> CƯỠNG CHẾ KHÔNG BẮN (0.0)
+            shoot = 0.0 
+        else:
+            # Nếu không có tên -> Cho phép bắn theo ý Agent
+            shoot = 1.0 if wants_to_shoot else 0.00
         
         # Trả về mảng đúng định dạng env gốc yêu cầu
         return np.array([angle, power, shoot], dtype=np.float64)

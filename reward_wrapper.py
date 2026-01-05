@@ -8,52 +8,53 @@ class RewardWrapper(gym.Wrapper):
 
     def step(self, action):
         obs, terminated, truncated, info = self.env.step(action)
-
         reward = self.calculate_reward(obs, info)
-
         return obs, reward, terminated, truncated, info
     
-
     def calculate_reward(self, obs, info):
         reward = 0.0
         step_info = info.get('step_info', {})
         
-        # 1. Cơ chế Thưởng/Phạt cơ bản (Hard Events)
+        # 1. HARD EVENTS
+        # Miễn phí khai hỏa (0.0) để dụ bắn
         if step_info.get('shot_fired', False):
-            reward -= 0.0  # Giảm mức phạt bắn để khuyến khích Agent thử nghiệm
+            reward -= 0.0 
             
-        if step_info.get('targets_hit', 0) > 0:
-            reward += 100.0 * step_info['targets_hit'] # Thưởng lớn khi trúng
-            
+        # Phạt trượt nhẹ (-2.0)
         if step_info.get('arrows_went_out', 0) > 0:
-            reward -= 10.0 * step_info['arrows_went_out']
+            reward -= 2.0 * step_info['arrows_went_out']
+            
+        # 2. XỬ LÝ HIT (Quan trọng: Cần Env trả về hit_priority_target)
+        if step_info.get('hit_priority_target', False):
+            # Bắn trúng ĐÚNG priority target -> Thưởng lớn
+            reward += 100.0
         
-        # 2. Distance Reward (Reward Shaping - Linh hồn của sự cải tiến)
-        # Mục tiêu: Thưởng khi mũi tên bay lại gần Target
+        # 3. LINEAR SHAPING REWARD (Công thức tuyến tính của bạn)
         active_arrows = obs.get('arrows', [])
         active_targets = obs.get('targets', [])
 
+        # Tính điểm dựa trên khoảng cách (cho các frame mũi tên đang bay)
         if active_arrows and active_targets:
-            current_min_dist = float('inf')
+            priority_target = active_targets[0] 
+            t_pos = np.array([priority_target['pos']['x'], priority_target['pos']['y']])
             
+            min_dist = float('inf')
             for arrow in active_arrows:
                 a_pos = np.array([arrow['pos']['x'], arrow['pos']['y']])
-                for target in active_targets:
-                    t_pos = np.array([target['pos']['x'], target['pos']['y']])
-                    
-                    dist = np.linalg.norm(a_pos - t_pos)
-                    if dist < current_min_dist:
-                        current_min_dist = dist
+                dist = np.linalg.norm(a_pos - t_pos)
+                if dist < min_dist:
+                    min_dist = dist
             
-            # Thưởng "tiệm cận": Khoảng cách càng gần, reward càng tăng nhẹ
-            # Công thức: 1 / (khoảng cách + 1) để tránh chia cho 0
-            if current_min_dist < 200:
-                proximity_reward = 0.05 * (1.0 - (current_min_dist / 200.0))
-                reward += proximity_reward
+            # --- CÔNG THỨC TUYẾN TÍNH (1/x) ---
+            # K = 200, C = 2.0
+            dist_reward = 200.0 / (min_dist + 2.0) 
+            
+            # Nhân với 0.05 để mỗi frame nhận một chút
+            reward += dist_reward * 0.05
 
-        # 3. Phạt "Idle" (Không làm gì)
-        # Nếu không có mũi tên nào trên màn hình và Agent không bắn, phạt nhẹ
+        # 4. IDLE PENALTY
+        # Phạt nhẹ để ép hành động
         if len(active_arrows) == 0 and not step_info.get('shot_fired', False):
-            reward -= 0.5
+            reward -= 0.1
 
         return reward

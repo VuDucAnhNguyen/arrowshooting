@@ -5,6 +5,11 @@ class RewardWrapper(gym.Wrapper):
     
     def __init__ (self, env):
         super().__init__(env)
+        self.current_zone = 3 
+
+    def reset(self, **kwargs):
+        self.current_zone = 3
+        return self.env.reset(**kwargs)
 
     def step(self, action):
         obs, terminated, truncated, info = self.env.step(action)
@@ -16,24 +21,25 @@ class RewardWrapper(gym.Wrapper):
         step_info = info.get('step_info', {})
         
         # 1. HARD EVENTS
-        # Miễn phí khai hỏa (0.0) để dụ bắn
         if step_info.get('shot_fired', False):
             reward -= 0.0 
             
-        # Phạt trượt nhẹ (-2.0)
-        if step_info.get('arrows_went_out', 0) > 0:
-            reward -= 2.0 * step_info['arrows_went_out']
-            
-        # 2. XỬ LÝ HIT (Quan trọng: Cần Env trả về hit_priority_target)
         if step_info.get('hit_priority_target', False):
-            # Bắn trúng ĐÚNG priority target -> Thưởng lớn
             reward += 100.0
-        
-        # 3. LINEAR SHAPING REWARD (Công thức tuyến tính của bạn)
+            self.current_zone = 3
+            
+        # phạt trượt
+        if step_info.get('arrows_went_out', 0) > 0:
+            reward -= 5.0 * step_info['arrows_went_out']
+            self.current_zone = 3
+            
+        # 2. shaping reward
         active_arrows = obs.get('arrows', [])
         active_targets = obs.get('targets', [])
 
-        # Tính điểm dựa trên khoảng cách (cho các frame mũi tên đang bay)
+        if not active_arrows:
+            self.current_zone = 3
+
         if active_arrows and active_targets:
             priority_target = active_targets[0] 
             t_pos = np.array([priority_target['pos']['x'], priority_target['pos']['y']])
@@ -45,16 +51,29 @@ class RewardWrapper(gym.Wrapper):
                 if dist < min_dist:
                     min_dist = dist
             
-            # --- CÔNG THỨC TUYẾN TÍNH (1/x) ---
-            # K = 200, C = 2.0
-            dist_reward = 200.0 / (min_dist + 2.0) 
             
-            # Nhân với 0.05 để mỗi frame nhận một chút
-            reward += dist_reward * 0.05
+            # Mốc 1 (< 150px):
+            if min_dist < 150 and self.current_zone > 2:
+                reward += 1.0
+                self.current_zone = 2
 
-        # 4. IDLE PENALTY
-        # Phạt nhẹ để ép hành động
+            # Mốc 2 (< 100px):
+            if min_dist < 100 and self.current_zone > 1:
+                reward += 1.0
+                self.current_zone = 1
+
+            # Mốc 3 (< 50px):
+            if min_dist < 50 and self.current_zone > 0:
+                reward += 2.0
+                self.current_zone = 0
+
+        # 3. phạt không làm gì
         if len(active_arrows) == 0 and not step_info.get('shot_fired', False):
             reward -= 0.1
+            
+        # 4. phạt giữ đạn
+        arrows_left = step_info.get('arrows_left', 0)
+        if arrows_left > 0:
+            reward -= 0.01 * arrows_left
 
         return reward

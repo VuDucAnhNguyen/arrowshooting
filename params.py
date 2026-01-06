@@ -17,6 +17,7 @@ class Params:
         
         self.training_num_episodes = 2000   # Tổng số màn chơi để train
         self.n_steps = 2048
+        self.test_episode = 5
         
         self.save_path = "arrow_shooting_ppo_best.pth"
 
